@@ -1,0 +1,10 @@
+defaults: common_6ml.yaml
+
+experiment_name: segformer_b0_6ml
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  num_classes: 6
+
+train:
+  output_dir: runs/segformer_b0_6ml

@@ -1,0 +1,10 @@
+# RGB runtime dependencies. Install from this directory with:
+#   uv pip install --python .venv/bin/python -r requirements-rgb-integration.txt
+# Build and install this checkout's pycolmap separately after installing COLMAP:
+#   colmap_DIR="$PWD/install-rgb" uv pip install --python .venv/bin/python \
+#     --no-build-isolation --config-settings=cmake.define.GENERATE_STUBS=OFF -e .
+# Do not install a published pycolmap wheel over the local editable build.
+
+-e ../RGB/6ML
+# Optional RGB/6ML DeepLabV3+ backend used by compare_rgb_models.py.
+segmentation-models-pytorch>=0.5,<0.6

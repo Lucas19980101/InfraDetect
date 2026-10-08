@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "infradetect-rgb-6ml"
+version = "0.1.0"
+description = "Shared six-channel RGB multi-label segmentation pipeline"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+  "albumentations>=2,<3",
+  "numpy>=1.24",
+  "opencv-python-headless>=4.8",
+  "Pillow>=9",
+  "PyYAML>=6",
+  "torch>=2.1",
+  "transformers>=4.45,<5",
+]
+
+[project.scripts]
+rgb6-train = "rgb_multilabel.train:main"
+rgb6-evaluate = "rgb_multilabel.evaluate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

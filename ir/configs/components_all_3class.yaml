@@ -1,0 +1,24 @@
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/components_3class/manifest_grouped_splits.csv
+  include_sources: [3dom, cmp_base, cmp_extended, etrims8, hznu]
+  image_size: [512, 768]
+  num_workers: 4
+  class_names: [building_surface, opening, other]
+  augmentation:
+    rotation_degrees: 10
+    rotation_probability: 0.5
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 3
+  pretrained: true
+train:
+  batch_size: 2
+  epochs: 20
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  mixed_precision: true
+  output_dir: ../runs/components_all_3class

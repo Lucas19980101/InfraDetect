@@ -1,0 +1,21 @@
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/hku_adaptation/prepared/component_manifest.csv
+  include_sources: [hku_adapt]
+  image_size: [512, 768]
+  num_workers: 2
+  class_names: [building_surface, opening, other]
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 3
+  pretrained: true
+train:
+  batch_size: 2
+  epochs: 1
+  learning_rate: 0.000005
+  weight_decay: 0.01
+  mixed_precision: true
+  output_dir: ../runs/components_hku_eval

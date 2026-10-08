@@ -1,0 +1,141 @@
+source,name,reason
+hznu,c_0212,upper facade mislabeled as other and occlusion boundary errors
+hznu,c_0254,upper facade mislabeled as other and occlusion boundary errors
+hznu,c_0214,reviewed source overlay; unusable
+hznu,c_0215,reviewed source overlay; unusable
+hznu,c_0216,reviewed source overlay; unusable
+hznu,c_0221,reviewed source overlay; unusable
+hznu,c_0222,reviewed source overlay; unusable
+hznu,c_0223,reviewed source overlay; unusable
+hznu,c_0225,reviewed source overlay; unusable
+hznu,c_0241,reviewed source overlay; unusable
+hznu,c_0245,reviewed source overlay; unusable
+hznu,c_0246,reviewed source overlay; unusable
+hznu,c_0248,reviewed source overlay; unusable
+hznu,c_0253,reviewed source overlay; unusable
+hznu,c_0258,reviewed source overlay; unusable
+hznu,c_0260,reviewed source overlay; unusable
+hznu,c_0273,reviewed source overlay; unusable
+hznu,c_0274,reviewed source overlay; unusable
+hznu,c_0276,reviewed source overlay; unusable
+hznu,c_0277,reviewed source overlay; unusable
+hznu,c_0278,reviewed source overlay; unusable
+hznu,c_0279,reviewed source overlay; unusable
+hznu,c_0280,reviewed source overlay; unusable
+hznu,c_0283,reviewed source overlay; unusable
+hznu,c_0284,reviewed source overlay; unusable
+hznu,c_0300,reviewed source overlay; unusable
+hznu,c_0303,reviewed source overlay; unusable
+hznu,d_0001,open ground-floor bay labeled as building surface
+hznu,c_0265,reviewed EXIF overlay still problematic
+hznu,c_0287,reviewed EXIF overlay still problematic
+hznu,c_0290,reviewed EXIF overlay still problematic
+hznu,c_0292,reviewed EXIF overlay still problematic
+hznu,c_0294,reviewed EXIF overlay still problematic
+hznu,c_0295,reviewed EXIF overlay still problematic
+hznu,c_0297,reviewed EXIF overlay still problematic
+hznu,c_0302,reviewed EXIF overlay still problematic
+hznu,c_0322,reviewed EXIF overlay still problematic
+hznu,d_0243,reported facade and other mask misalignment
+hznu,d_0232,reported facade and other mask misalignment
+hznu,d_0203,reported facade and other mask misalignment
+hznu,d_0131,reported facade and other mask misalignment
+hznu,d_0096,reported facade and other mask misalignment
+hznu,d_0077,reported border alignment issue
+hznu,d_0078,reported facade and other mask misalignment
+hznu,c_0168,reviewed original source overlay; unusable
+hznu,c_0170,reviewed original source overlay; unusable
+hznu,c_0171,reviewed original source overlay; unusable
+hznu,c_0172,reviewed original source overlay; unusable
+hznu,c_0174,reviewed original source overlay; unusable
+hznu,c_0175,reviewed original source overlay; unusable
+hznu,c_0179,reviewed original source overlay; unusable
+hznu,c_0180,reviewed original source overlay; unusable
+hznu,c_0181,reviewed original source overlay; unusable
+hznu,c_0182,reviewed original source overlay; unusable
+hznu,c_0183,reviewed original source overlay; unusable
+hznu,c_0187,reviewed original source overlay; unusable
+hznu,c_0188,reviewed original source overlay; unusable
+hznu,c_0189,reviewed original source overlay; unusable
+hznu,c_0190,reviewed original source overlay; unusable
+hznu,c_0191,reviewed original source overlay; unusable
+hznu,c_0192,reviewed original source overlay; unusable
+hznu,c_0193,reviewed original source overlay; unusable
+hznu,c_0194,reviewed original source overlay; unusable
+hznu,c_0195,reviewed original source overlay; unusable
+hznu,c_0196,reviewed original source overlay; unusable
+hznu,c_0197,reviewed original source overlay; unusable
+hznu,c_0198,reviewed original source overlay; unusable
+hznu,c_0199,reviewed original source overlay; unusable
+hznu,c_0200,reviewed original source overlay; unusable
+hznu,c_0202,reviewed original source overlay; unusable
+hznu,c_0203,reviewed original source overlay; unusable
+hznu,c_0204,reviewed original source overlay; unusable
+hznu,c_0205,reviewed original source overlay; unusable
+hznu,c_0206,reviewed original source overlay; unusable
+hznu,c_0207,reviewed original source overlay; unusable
+hznu,c_0208,reviewed original source overlay; unusable
+hznu,c_0209,reviewed original source overlay; unusable
+hznu,c_0211,reviewed original source overlay; unusable
+hznu,c_0213,reviewed original source overlay; unusable
+hznu,c_0217,reviewed original source overlay; unusable
+hznu,c_0218,reviewed original source overlay; unusable
+hznu,c_0219,reviewed original source overlay; unusable
+hznu,c_0220,reviewed original source overlay; unusable
+hznu,c_0224,reviewed original source overlay; unusable
+hznu,c_0226,reviewed original source overlay; unusable
+hznu,c_0227,reviewed original source overlay; unusable
+hznu,c_0228,reviewed original source overlay; unusable
+hznu,c_0230,reviewed original source overlay; unusable
+hznu,c_0231,reviewed original source overlay; unusable
+hznu,c_0232,reviewed original source overlay; unusable
+hznu,c_0233,reviewed original source overlay; unusable
+hznu,c_0234,reviewed original source overlay; unusable
+hznu,c_0235,reviewed original source overlay; unusable
+hznu,c_0236,reviewed original source overlay; unusable
+hznu,c_0237,reviewed original source overlay; unusable
+hznu,c_0238,reviewed original source overlay; unusable
+hznu,c_0239,reviewed original source overlay; unusable
+hznu,c_0240,reviewed original source overlay; unusable
+hznu,c_0242,reviewed original source overlay; unusable
+hznu,c_0243,reviewed original source overlay; unusable
+hznu,c_0244,reviewed original source overlay; unusable
+hznu,c_0247,reviewed original source overlay; unusable
+hznu,c_0250,reviewed original source overlay; unusable
+hznu,c_0251,reviewed original source overlay; unusable
+hznu,c_0252,reviewed original source overlay; unusable
+hznu,c_0255,reviewed original source overlay; unusable
+hznu,c_0256,reviewed original source overlay; unusable
+hznu,c_0262,reviewed original source overlay; unusable
+hznu,c_0266,reviewed original source overlay; unusable
+hznu,c_0271,reviewed original source overlay; unusable
+hznu,c_0272,reviewed original source overlay; unusable
+hznu,c_0275,reviewed original source overlay; unusable
+hznu,c_0281,reviewed original source overlay; unusable
+hznu,c_0282,reviewed original source overlay; unusable
+hznu,c_0285,reviewed original source overlay; unusable
+hznu,c_0286,reviewed original source overlay; unusable
+hznu,c_0289,reviewed original source overlay; unusable
+hznu,c_0291,reviewed original source overlay; unusable
+hznu,c_0298,reviewed original source overlay; unusable
+hznu,c_0301,reviewed original source overlay; unusable
+hznu,c_0304,reviewed original source overlay; unusable
+hznu,c_0305,reviewed original source overlay; unusable
+hznu,c_0310,reviewed original source overlay; unusable
+hznu,c_0334,reviewed original source overlay; unusable
+hznu,d_0003,reviewed original source overlay; unusable
+hznu,d_0065,reviewed original source overlay; unusable
+hznu,d_0083,reviewed original source overlay; unusable
+hznu,d_0085,reviewed original source overlay; inaccurate boundary
+hznu,d_0086,reviewed original source overlay; inaccurate boundary
+hznu,d_0090,reviewed original source overlay; inaccurate boundary
+hznu,d_0091,reviewed original source overlay; unusable
+hznu,d_0093,reviewed original source overlay; unusable
+hznu,d_0098,reviewed original source overlay; inaccurate boundary
+hznu,d_0100,reviewed original source overlay; unusable
+hznu,d_0104,reviewed original source overlay; inaccurate boundary
+hznu,d_0134,reviewed original source overlay; inaccurate boundary
+hznu,d_0158,reviewed original source overlay; inaccurate boundary
+hznu,d_0162,reviewed original source overlay; inaccurate boundary
+hznu,d_0176,reviewed original source overlay; inaccurate boundary
+hznu,d_0212,reviewed original source overlay; unusable

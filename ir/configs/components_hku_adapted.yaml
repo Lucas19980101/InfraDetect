@@ -1,0 +1,27 @@
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/hku_adaptation/prepared/component_manifest_combined.csv
+  include_sources: [3dom, cmp_base, cmp_extended, etrims8, hznu, bfdd_rgb, hku_adapt]
+  image_size: [512, 768]
+  num_workers: 4
+  class_names: [building_surface, opening, other]
+  augmentation:
+    rotation_degrees: 10
+    rotation_probability: 0.5
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 3
+  pretrained: true
+train:
+  batch_size: 2
+  epochs: 8
+  learning_rate: 0.000005
+  weight_decay: 0.01
+  mixed_precision: true
+  source_sampling_weights:
+    bfdd_rgb: 5.0
+    hku_adapt: 8.0
+  output_dir: ../runs/components_hku_adapted

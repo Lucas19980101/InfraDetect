@@ -1,0 +1,22 @@
+defaults: segformer_b0_6ml.yaml
+
+experiment_name: segformer_b0_damcrack_joint
+
+train:
+  epochs: 15
+  learning_rate: 0.00001
+  output_dir: runs/segformer_b0_damcrack_joint
+
+multidataset:
+  base_checkpoint: runs/segformer_b0_6ml/best.pt
+  samples_per_epoch: 8000
+  sources:
+    - name: dacl10k
+      type: dacl
+      split: train
+      weight: 0.5
+    - name: damcrack
+      type: manifest
+      manifest: ../../colmap/benchmark/datasets/damcrack/manifest.csv
+      splits: [train, val, test]
+      weight: 0.5

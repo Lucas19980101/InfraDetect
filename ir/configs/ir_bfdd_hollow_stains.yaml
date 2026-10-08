@@ -1,0 +1,26 @@
+seed: 42
+task: ir
+data:
+  root: ../../collected_datasets/Dataset_1x
+  manifest: ../data/bfdd_hollow_stains_split.csv
+  image_size: [512, 640]
+  num_workers: 4
+  class_names: [Background, "Hollow Areas", Stains]
+  # Preserve BFDD semantics. Other annotated defect classes are ignored rather
+  # than incorrectly taught as healthy background.
+  label_map: {0: 0, 3: 1, 4: 2}
+  palette_rgb: [[0, 0, 0], [174, 79, 13], [36, 179, 83]]
+model:
+  architecture: deeplabv3plus
+  encoder: resnet50
+  classes: 3
+  pretrained: true
+train:
+  batch_size: 4
+  epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  mixed_precision: true
+  # Rounded inverse-sqrt weighting from the 570-image specialized train split.
+  class_weights: [1.0, 8.0, 6.0]
+  output_dir: ../runs/ir_bfdd_hollow_stains

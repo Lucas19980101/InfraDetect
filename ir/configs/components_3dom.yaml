@@ -1,0 +1,20 @@
+seed: 42
+task: components
+data:
+  root: ../../collected_datasets/3DOM
+  manifest: ../data/3dom_split.csv
+  image_size: [512, 768]
+  num_workers: 4
+  class_names: [facade, window, obstacle, sky, door]
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 5
+  pretrained: true
+train:
+  batch_size: 2
+  epochs: 50
+  learning_rate: 0.00006
+  weight_decay: 0.01
+  mixed_precision: true
+  output_dir: ../runs/components_3dom

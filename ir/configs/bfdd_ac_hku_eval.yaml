@@ -1,0 +1,22 @@
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/hku_adaptation/prepared/ac_manifest.csv
+  include_sources: [hku_ac]
+  image_size: [512, 768]
+  num_workers: 2
+  class_names: [background, air_conditioner]
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 2
+  pretrained: true
+train:
+  batch_size: 2
+  epochs: 1
+  learning_rate: 0.000005
+  weight_decay: 0.01
+  mixed_precision: true
+  class_weights: [0.5, 1.0]
+  output_dir: ../runs/bfdd_ac_hku_eval

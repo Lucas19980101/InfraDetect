@@ -1,0 +1,66 @@
+{
+  "classes": {
+    "0": "building_surface",
+    "1": "opening",
+    "2": "other",
+    "255": "ignore"
+  },
+  "counts": {
+    "3dom": 227,
+    "cmp_base": 378,
+    "cmp_extended": 228,
+    "etrims8": 60,
+    "hznu": 624
+  },
+  "anomalous_hznu_labels": {
+    "56": 1
+  },
+  "mapping": {
+    "3dom": {
+      "1": 0,
+      "2": 1,
+      "3": 2,
+      "4": 2,
+      "5": 1
+    },
+    "cmp": {
+      "2": 0,
+      "5": 0,
+      "6": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "3": 1,
+      "4": 1,
+      "8": 1,
+      "1": 255,
+      "7": 255,
+      "12": 255
+    },
+    "etrims8": {
+      "1": 0,
+      "3": 1,
+      "8": 1,
+      "2": 2,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 2
+    },
+    "hznu": {
+      "building": 0,
+      "window": 1,
+      "door": 1,
+      "sky": 2,
+      "tree": 2,
+      "car": 2
+    }
+  },
+  "unmapped_cmp_ids": [
+    0,
+    1,
+    7,
+    12
+  ],
+  "note": "No training started. CMP unlabeled/background/balcony/shop are ignored; no BFDD component truth is assumed."
+}

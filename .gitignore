@@ -1,0 +1,45 @@
+# Python and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.native/
+.cache/
+
+# Data and generated artifacts
+collected_datasets/
+dataset/images/
+dataset/masks/
+datasets/
+runs/
+outputs/
+logs/
+features/
+results/*/visualizations/
+
+# Models and large numerical artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npy
+*.npz
+*.bag
+*.pcd
+*.ply
+*.bin
+
+# COLMAP/ROS generated workspaces
+database.db
+sparse/
+dense/
+Log/
+
+# Local/editor files
+.idea/
+.vscode/
+*.log
+*.INFO
+*~
+
