@@ -1,45 +1,14 @@
-# Python and environments
+# Avoid accidentally committing large weights, datasets, and generated results.
+# 注意：忽略规则不删除现有 checkpoint；分享整个交付文件夹仍需核查模型授权。
+models/**/*.pt
+models/**/*.pth
+models_weights.zip
+# 输入数据与每次运行结果由使用者另行提供/生成，不属于源码。
+data/
+outputs/
+runs/
+# Python 缓存、测试缓存和本机独立虚拟环境不可作为交付成果。
+*.pyc
 __pycache__/
-*.py[cod]
 .pytest_cache/
 .venv/
-venv/
-.native/
-.cache/
-
-# Data and generated artifacts
-collected_datasets/
-dataset/images/
-dataset/masks/
-datasets/
-runs/
-outputs/
-logs/
-features/
-results/*/visualizations/
-
-# Models and large numerical artifacts
-*.pt
-*.pth
-*.ckpt
-*.onnx
-*.npy
-*.npz
-*.bag
-*.pcd
-*.ply
-*.bin
-
-# COLMAP/ROS generated workspaces
-database.db
-sparse/
-dense/
-Log/
-
-# Local/editor files
-.idea/
-.vscode/
-*.log
-*.INFO
-*~
-

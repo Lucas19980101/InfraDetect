@@ -1,0 +1,49 @@
+# Remote 24 GiB experiment: fine-tune both aligned RGB and thermal branches.
+# Select checkpoints only on Flug1_103 validation.
+# 主热异常分支的 RGB+IR 配置快照。推理依赖输入模态、归一化、网络结构与
+# native_patches；原训练集路径和 train.* 不表示交付包包含训练功能。
+seed: 42
+task: thermal
+data:
+  root: ../../collected_datasets/flug
+  manifest: ../data/tbbr_thermal/manifest.csv
+  image_size: [1024, 1280]  # 原像素裁块高、宽，不缩放整图
+  native_patches: true  # 原尺寸滑窗推理
+  patches_per_image: 1
+  positive_crop_probability: 0.75
+  tile_overlap: 0.25  # 相邻推理块重叠比例
+  num_workers: 0
+  pin_memory: false
+  class_names: [Background, "Thermal Anomaly"]  # 原始 checkpoint 类名；展示时可称 Non-thermal-anomaly / Thermal anomaly
+  input_mode: rgb_thermal  # 已配准 RGB 辅助热异常，不等于独立 RGB 缺陷真值
+  thermal_channel: 3  # 四通道核心输入中第 4 通道（从 0 开始）
+  normalization: {mean: 125.0, std: 34.0}
+  rgb_normalization:
+    mean: [123.675, 116.28, 103.53]
+    std: [58.395, 57.12, 57.375]
+  augmentation:
+    gain: [0.80, 1.20]
+    offset: [-18.0, 18.0]
+    noise_std: 2.0
+model:
+  # 与随包主分支 checkpoint 的网络张量形状保持一致。
+  architecture: segformer_rgb_thermal
+  encoder: b2
+  classes: 2
+  pretrained: false
+  freeze_rgb_encoder: false
+  rgb_pretrained_id: nvidia/segformer-b2-finetuned-ade-512-512
+  thermal_checkpoint: ../runs/thermal_tbbr_segformer_b2_native_patches_taseg_init/best.pt
+train:
+  # 历史训练记录；本交付包不包含训练脚本、optimizer 或原始全量 checkpoint。
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  epochs: 50
+  learning_rate: 0.0001
+  rgb_learning_rate_multiplier: 0.1
+  weight_decay: 0.0001
+  mixed_precision: true
+  optimizer_foreach: false
+  class_weights: [1.0, 8.0]
+  selection_metric: anomaly_iou
+  output_dir: ../runs/thermal_tbbr_segformer_b2_rgb_thermal_fusion_fullfinetune

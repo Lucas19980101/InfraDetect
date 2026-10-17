@@ -1,0 +1,32 @@
+# 空调/设备 RGB 二分类权重的配置快照；交付包只用其模型结构、类别与推理尺寸。
+# data.manifest、include_sources、augmentation 和 train.* 记录原训练实验，
+# 交付包不包含这些数据或训练脚本，不能在此目录直接继续训练。
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/hku_adaptation/prepared/ac_manifest_combined.csv
+  include_sources: [bfdd_ac_full, bfdd_ac_positive_crop, bfdd_ac_negative_crop, hku_ac]
+  image_size: [512, 768]  # 原像素裁块的高、宽；不是把整张图缩成此尺寸
+  num_workers: 4
+  class_names: [background, air_conditioner]  # 输出通道顺序必须与 checkpoint 一致
+  augmentation:
+    rotation_degrees: 10
+    rotation_probability: 0.5
+model:
+  # 架构和类别数决定权重张量形状；推理加载时不得随意修改。
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 2
+  pretrained: true
+train:
+  # 以下仅是训练历史记录；推理时不运行 optimizer 或 scheduler。
+  batch_size: 2
+  epochs: 8
+  learning_rate: 0.000005
+  weight_decay: 0.01
+  mixed_precision: true
+  class_weights: [0.5, 1.0]
+  source_sampling_weights:
+    hku_ac: 2.0
+  output_dir: ../runs/bfdd_ac_hku_adapted

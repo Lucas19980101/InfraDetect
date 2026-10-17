@@ -1,0 +1,32 @@
+# 建筑构件 RGB 三分类权重的配置快照：墙面、开口、其他。
+# 交付包仅用结构/类别/推理尺寸；数据来源和 train.* 是原实验记录，
+# 并非要求组员下载这些训练集或在交付包中重新训练。
+seed: 42
+task: components
+data:
+  root: ..
+  manifest: ../data/hku_adaptation/prepared/component_manifest_combined.csv
+  include_sources: [3dom, cmp_base, cmp_extended, etrims8, hznu, bfdd_rgb, hku_adapt]
+  image_size: [512, 768]  # 原像素推理块的高、宽
+  num_workers: 4
+  class_names: [building_surface, opening, other]  # 与 checkpoint 输出通道逐一对应
+  augmentation:
+    rotation_degrees: 10
+    rotation_probability: 0.5
+model:
+  # 必须与随包权重的网络结构一致。
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0
+  classes: 3
+  pretrained: true
+train:
+  # 仅用于解释历史训练方案；当前交付包无训练入口。
+  batch_size: 2
+  epochs: 8
+  learning_rate: 0.000005
+  weight_decay: 0.01
+  mixed_precision: true
+  source_sampling_weights:
+    bfdd_rgb: 5.0
+    hku_adapt: 8.0
+  output_dir: ../runs/components_hku_adapted

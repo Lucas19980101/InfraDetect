@@ -1,0 +1,58 @@
+# Experiment B 的训练配置快照，依据原 run 保存的 config.yaml 抄录。
+# 仅用于解释交付权重的来源；本包不含数据、训练器或 A 的完整 checkpoint，不能直接开训。
+seed: 42
+
+data:
+  root: ../datasets/dacl10k/raw/dacl10k_v2_devphase  # 原训练仓库中的 DACL10K 路径；交付包内不存在
+  mask_cache: ../datasets/dacl10k/cache/labels_6ml  # 六类标签缓存；交付包内不存在
+  class_names:  # 输出通道顺序；与 checkpoint 中一致
+    - crack
+    - spalling
+    - exposed_rebar
+    - rust
+    - efflorescence
+    - wetspot
+  crop_size: 512  # 从原图取 512×512 裁片，不是整图 resize
+  num_workers: 4
+  ignore_other_dacl10k_classes: true  # 不把其他 DACL 类别强行当作这六类的负例
+  split_manifest: data/split_manifest.csv  # 原训练仓库的固定划分；此处没有该文件
+
+train:
+  batch_size: 4
+  gradient_accumulation_steps: 2  # 每 2 个 batch 更新一次参数
+  mixed_precision: true
+  epochs: 50  # 最多训练 50 epoch；交付权重是第 36 epoch 的 best
+  learning_rate: 1.0e-05
+  weight_decay: 0.01
+  output_dir: runs/segformer_b0_native_classaware_v1  # 原 run 路径，不是交付包输出目录
+  loss:
+    name: bce_dice
+    bce_weight: 0.5
+    dice_weight: 0.5
+    pos_weight: null
+
+evaluation:
+  tune_per_class_thresholds: true  # 六类阈值在 DACL val 上重新校准
+  relaxed_crack_radius: 3  # 额外的宽松裂缝指标；不替代用于选模的严格 IoU
+
+experiment_name: segformer_b0_native_classaware_v1
+model:
+  architecture: segformer_b0
+  pretrained_name: nvidia/mit-b0  # 网络定义；本轮实际从下方 A checkpoint warm start
+  num_classes: 6
+
+native:
+  base_checkpoint: runs/segformer_b0_nativecrop_v2/best.pt  # Experiment A；不随交付包提供
+  crop_mode: class_aware  # 按类别提高含有效正像素裁片的抽样机会
+  stride: 384  # 原分辨率验证/推理的滑窗步长，patch 为 512
+  validation_interval: 2  # 每 2 epoch 验证一次
+  early_stopping_patience_validations: 10
+  min_positive_pixels: 16
+  class_probabilities:  # 顺序与 data.class_names 一致；总和 0.9
+    - 0.22
+    - 0.10
+    - 0.18
+    - 0.08
+    - 0.12
+    - 0.20
+  background_probability: 0.10  # 保留不含目标缺陷的背景/困难负例裁片

@@ -1,0 +1,18 @@
+# InfraDetect prototype v1: inference and bundled regression tests.
+# Install a matching torch + torchvision pair FIRST (CPU or CUDA as appropriate).
+# See ENVIRONMENT.md; this file deliberately does not choose a CUDA wheel.
+# 数组、影像 I/O 与几何/形态学运算；OpenCV 用无 GUI 版本。
+numpy==2.5.2
+opencv-python-headless==5.0.0.93
+scipy==1.18.1
+# YAML 配置与推理进度条。
+PyYAML==6.0.3
+tqdm==4.70.1
+# SegFormer、DeepLabV3+ 及其网络/权重格式依赖。
+transformers==4.57.6
+segmentation-models-pytorch==0.3.4
+timm==0.9.7
+pillow==12.3.0
+safetensors==0.8.0
+# 仅用于运行交付包 tests/；实际推理不依赖 pytest。
+pytest==9.1.1

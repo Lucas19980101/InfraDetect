@@ -1,0 +1,618 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: BSD-3-Clause; adapted from colmap/scripts/south_building_review.html -->
+<!--
+  本页是本地复核界面模板，由 infradetect.tbbr_review.py 提供数据与静态资源。
+  左栏用于查看/选择三维候选点，右栏展示对应的 RGB/IR 原图、可选 mask
+  和人工复核表单。前端只展示证据并提交人工选择；不执行模型推理，也不改原始标注。
+  "__REVIEW_TOKEN__" 由本地服务替换为会话令牌，不应手工写入真实密钥。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InfraDetect · TBBR 三维对应审核</title>
+  <style>
+    /* 左侧点云与右侧照片由 --cloud-width 控制宽度；窄屏改为上下布局。
+       黄色 .marker 是当前三维点的位置提示，不是模型预测或缺陷边界。 */
+    /* 基础配色和双栏布局；点云与照片可以拖动中间分隔条调宽度。 */
+    :root { color-scheme: light; font-family: Inter, "Noto Sans SC", system-ui, sans-serif; color: #202734; background: #f4f5f7; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; }
+    header { min-height: 56px; padding: 12px 22px; background: #18212e; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    h1 { font-size: 17px; margin: 0; line-height: 1.3; }
+    header small { color: #b8c4d3; font-size: 12px; }
+    main { height: calc(100vh - 56px); display: grid; grid-template-columns: minmax(320px, var(--cloud-width, 54%)) 9px minmax(320px, 1fr); }
+    .left { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #ccd3dc; }
+    #splitter { cursor: col-resize; background: #c7d1df; touch-action: none; }
+    #splitter:hover, #splitter:focus-visible { background: #4184dd; }
+    .canvas-bar { padding: 10px 14px; background: white; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 12px; color: #4b596c; }
+    .legend { white-space: nowrap; }
+    .legend .key { margin-left: 8px; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; background: #ef7828; }
+    #cloud { width: 100%; flex: 1; min-height: 260px; display: block; background: radial-gradient(circle at center, #fff, #e7ebf1); touch-action: none; cursor: grab; }
+    #cloud:active { cursor: grabbing; }
+    /* 左下候选列表只是导航控件；选中颜色不代表人工确认状态。 */
+    .list-head { padding: 8px 14px; background: white; border-top: 1px solid #d8dee7; display: flex; align-items: center; gap: 10px; }
+    .list-head strong { font-size: 12px; white-space: nowrap; }
+    #search { width: 100%; min-width: 0; border: 1px solid #b9c3d0; border-radius: 6px; padding: 7px 9px; font-size: 12px; font-family: inherit; line-height: 1.2; }
+    #candidate-list { background: white; padding: 9px 14px; height: 145px; overflow: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px; }
+    .candidate { border: 1px solid #c7cfda; background: #fff; border-radius: 7px; padding: 7px 9px; cursor: pointer; font-size: 12px; font-family: inherit; line-height: 1.2; color: #273241; }
+    .candidate.selected { border: 2px solid #175bd1; padding: 6px 8px; }
+    .candidate.confirmed { background: #e0f4e7; } .candidate.rejected { background: #f5e4e4; } .candidate.uncertain { background: #fff1d8; }
+    .right { overflow: auto; padding: 17px; }
+    .summary { margin: 0 0 12px; color: #657081; font-size: 13px; line-height: 1.5; }
+    h2 { font-size: 19px; margin: 0 0 8px; }
+    .details { font-size: 13px; color: #4b596c; margin-bottom: 12px; line-height: 1.6; }
+    /* 右侧证据卡和复核表单的状态，保存动作由下面的 POST 代码明确触发。 */
+    .review { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .review button { border: 1px solid #b9c3d0; background: white; padding: 8px 12px; border-radius: 7px; cursor: pointer; font-size: 12px; font-family: inherit; line-height: 1.2; }
+    .review button.active { background: #1f5bc2; color: white; border-color: #1f5bc2; }
+    .evidence { background: #fff; border: 1px solid #d8dee7; border-radius: 9px; padding: 11px 13px; font-size: 13px; line-height: 1.55; margin: 10px 0; }
+    .evidence p { margin: 5px 0; }
+    #group-members { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+    #group-members button { border: 1px solid #c7cfda; background: #fff; border-radius: 5px; padding: 5px 7px; cursor: pointer; }
+    #group-members button.active { background: #d9e8ff; border-color: #175bd1; }
+    .group-form { display: grid; gap: 8px; margin: 12px 0; padding: 12px; background: #fff; border: 1px solid #d8dee7; border-radius: 9px; }
+    .group-form label { display: grid; gap: 4px; font-size: 12px; }
+    .group-form textarea { width: 100%; min-height: 55px; border: 1px solid #b9c3d0; border-radius: 6px; padding: 7px; font-family: inherit; }
+    .group-form button { width: fit-content; border: 0; background: #1f5bc2; color: white; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+    #save-status { font-size: 12px; color: #566577; min-height: 18px; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 9px 0 12px; }
+    .controls label { font-size: 13px; display: flex; align-items: center; gap: 7px; }
+    select { border: 1px solid #b9c3d0; background: white; border-radius: 6px; padding: 6px 8px; font-size: 12px; font-family: inherit; line-height: 1.2; }
+    /* 照片卡片可滚轮缩放；mask 是服务端临时叠加，黄圈是前端独立图层。 */
+    .photo-card { background: white; border: 1px solid #d8dee7; border-radius: 9px; padding: 9px; margin-bottom: 13px; }
+    .photo-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding-bottom: 8px; }
+    .photo-head .positive { color: #b74614; font-weight: 650; } .photo-head .negative { color: #637285; }
+    .photo-head button { border: 1px solid #b9c3d0; border-radius: 5px; background: #fff; cursor: pointer; }
+    .photo { overflow: auto; max-height: min(68vh, 700px); line-height: 0; background: #19212e; }
+    .photo-stage { position: relative; width: 100%; min-width: 100%; }
+    .photo img { display: block; width: 100%; height: auto; max-width: none; }
+    .marker { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 2px solid #ffff38; box-shadow: 0 0 0 2px #111, 0 0 8px #111; border-radius: 50%; pointer-events: none; }
+    .marker::after { content: ""; display: block; width: 4px; height: 4px; background: #111; border-radius: 50%; margin: 5px; }
+    /* 全屏窗口沿用同一原图 URL 与复核状态，不额外生成低分辨率副本。 */
+    dialog#photo-viewer { width: 100vw; max-width: none; height: 100vh; max-height: none; margin: 0; padding: 0; border: 0; color: #fff; background: #101317; }
+    dialog#photo-viewer::backdrop { background: #101317; }
+    .viewer-bar { height: 58px; display: flex; align-items: center; gap: 9px; padding: 8px 14px; background: #1b2028; }
+    .viewer-bar strong { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .viewer-bar button { border: 1px solid #697383; border-radius: 6px; padding: 6px 10px; color: #fff; background: #2b3440; cursor: pointer; }
+    .viewer-frame { height: calc(100vh - 58px); overflow: auto; display: flex; align-items: safe center; justify-content: safe center; cursor: grab; }
+    .viewer-frame:active { cursor: grabbing; }
+    .viewer-stage { position: relative; flex: none; width: min(100%, 1200px); }
+    .viewer-stage img { display: block; width: 100%; height: auto; }
+    dialog#photo-viewer .marker[hidden], .photo .marker[hidden] { display: none; }
+    #show-more { display: none; width: 100%; border: 1px solid #b9c3d0; border-radius: 7px; background: #fff; padding: 9px; margin-bottom: 12px; cursor: pointer; font-size: 13px; font-family: inherit; line-height: 1.2; }
+    .help { font-size: 12px; line-height: 1.6; color: #647285; }
+    button:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid #175bd1; outline-offset: 2px; }
+    @media (max-width: 900px) { main { height: auto; display: block; } #splitter { display: none; } .left { height: 68vh; border-right: 0; } .right { overflow: visible; } header { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <!-- 左栏：点云画布、候选点筛选与可拖动分隔条。 -->
+  <header><h1>InfraDetect · TBBR 三维对应审核</h1><small>Flug1_100 训练航线 · 仅本机访问 · 原标注只读</small></header>
+  <main>
+    <section class="left" aria-label="三维点云">
+      <div class="canvas-bar"><span>拖动旋转 · 滚轮缩放 · 点击橙色点</span><span class="legend"><i class="dot"></i>≥2 张标注照片支持</span></div>
+      <canvas id="cloud" aria-label="可旋转的稀疏三维点云" tabindex="0"></canvas>
+      <div class="list-head"><strong>候选点</strong><input id="search" type="search" placeholder="输入三维点编号筛选" aria-label="按点编号筛选"><small id="list-count"></small></div>
+      <div id="candidate-list"></div>
+    </section>
+    <div id="splitter" role="separator" tabindex="0" aria-label="拖动调整点云和图片栏宽度" aria-orientation="vertical"></div>
+    <!-- 右栏：所选点的证据、人工判断和同点跨照片对照。
+         mask 与黄色定位圈分别开关，原图可在全屏窗口独立查看。 -->
+    <section class="right">
+      <p class="summary" id="summary">载入稀疏重建与标注中…</p>
+      <h2 id="point-title">选择一个三维点</h2>
+      <div class="details" id="point-details"></div>
+      <div class="review" id="review-buttons"></div>
+      <div id="group-evidence" class="evidence" hidden></div>
+      <div id="group-members"></div>
+      <form id="group-form" class="group-form" hidden>
+        <strong>人工综合判断（按连续点组保存）</strong>
+        <label>RGB 可见缺陷是否支持此处热候选<select id="rgb-support"><option value="uncertain">不确定</option><option value="supported">支持</option><option value="not_supported">不支持</option></select></label>
+        <label>是否有热源/环境干扰证据<select id="interference-judgement"><option value="uncertain">不确定</option><option value="equipment_suspected">疑似设备/空调影响</option><option value="material_boundary_suspected">疑似材质/构件边界</option><option value="sunlight_or_reflection_suspected">疑似日照/反射</option><option value="other_suspected">其他干扰线索</option><option value="no_interference_evidence">目前无干扰证据</option></select></label>
+        <label>备注<textarea id="group-notes" maxlength="1000" placeholder="记录具体画面依据；不要把未支持自动等同于干扰"></textarea></label>
+        <button type="submit">保存本组判断</button>
+      </form>
+      <form id="geometry-group-form" class="group-form" hidden>
+        <strong>几何候选组人工判断</strong>
+        <label>这组点如何处理<select id="geometry-group-status">
+          <option value="uncertain">不确定</option><option value="suspected">值得复核</option>
+          <option value="structure">正常构件</option><option value="reconstruction_noise">重建噪声</option>
+          <option value="unreviewed">撤销判断</option>
+        </select></label>
+        <label>判断依据<textarea id="geometry-group-notes" maxlength="1000" placeholder="写明照片、构件或重建线索；组内并非必然同一缺陷"></textarea></label>
+        <button type="submit">保存本组判断</button>
+      </form>
+      <div id="save-status" role="status"></div>
+      <div class="controls">
+        <label>影像通道<select id="channel"><option value="rgb">RGB</option><option value="thermal">热图（第 4 通道）</option></select></label>
+        <label><input id="show-marker" type="checkbox" checked>黄色定位圈</label>
+        <label><input id="show-thermal-mask" type="checkbox" checked><span id="thermal-mask-label">热桥标注 mask</span></label>
+        <label class="model-layer" hidden><input id="show-rgb-mask" type="checkbox">RGB 缺陷 mask</label>
+        <label class="model-layer" hidden><input id="show-equipment-mask" type="checkbox">设备提示边线</label>
+        <button id="zoom-out" type="button" aria-label="缩小照片">−</button><span id="zoom-level">100%</span><button id="zoom-in" type="button" aria-label="放大照片">＋</button><button id="zoom-reset" type="button">重置</button>
+      </div>
+      <div id="photos"></div>
+      <button id="show-more" type="button">显示更多照片</button>
+      <p class="help">黄色圈是当前三维点在照片中的位置；橙红色叠加是 TBBRv2 原始 thermal bridge 标注，不是模型预测，也不等同于 Hollow/Stains。复核状态只写入独立的 reviews.json，不改动数据集。</p>
+    </section>
+  </main>
+  <!-- 全屏窗口沿用同一观察记录；缩放只影响显示，不改变原图像素或标注。 -->
+  <dialog id="photo-viewer" aria-label="全屏查看照片">
+    <div class="viewer-bar"><strong id="viewer-title"></strong><button id="viewer-prev" type="button" aria-label="上一张">←</button><button id="viewer-next" type="button" aria-label="下一张">→</button><button id="viewer-zoom-out" type="button" aria-label="缩小全屏图片">−</button><span id="viewer-zoom-level">100%</span><button id="viewer-zoom-in" type="button" aria-label="放大全屏图片">＋</button><button id="viewer-zoom-reset" type="button">适合窗口</button><button id="viewer-close" type="button" aria-label="关闭全屏">关闭 ×</button></div>
+    <div id="viewer-frame" class="viewer-frame"><div id="viewer-stage" class="viewer-stage"><img id="viewer-image" alt=""><div id="viewer-marker" class="marker"></div></div></div>
+  </dialog>
+  <script>
+    // 服务端填入仅供本机复核提交使用的令牌；展示/切换照片不需要写入。
+    const reviewToken = "__REVIEW_TOKEN__";
+    const canvas = document.getElementById("cloud");
+    const context = canvas.getContext("2d");
+    const list = document.getElementById("candidate-list");
+    const photos = document.getElementById("photos");
+    const main = document.querySelector("main");
+    const splitter = document.getElementById("splitter");
+    const statuses = {confirmed: "确认热桥", rejected: "否定", uncertain: "不确定", unreviewed: "未审核"};
+    let data, selected, yaw = 0.7, pitch = -0.28, zoom = 1, dragging = false, moved = false, lastX = 0, lastY = 0;
+    let projected = [], center = [0, 0, 0], extent = 1, photoLimit = 12, photoZoom = 1;
+    let selectedGroupId = null, renderedGroupId = null;
+    let viewerIndex = 0, viewerZoom = 1, viewerBaseWidth = 1, viewerDragging = false, viewerLastX = 0, viewerLastY = 0;
+    const viewer = document.getElementById("photo-viewer"), viewerFrame = document.getElementById("viewer-frame"), viewerStage = document.getElementById("viewer-stage");
+    // 后端用 evidence_mode 标明来源；前端据此选文字和控件，不能混用标签语义。
+    const modelMode = () => data?.summary?.evidence_mode === "model_prediction";
+    const bfddMode = () => data?.summary?.evidence_mode === "bfdd_dense_original_labels";
+    const geometryMode = () => data?.summary?.evidence_mode === "geometry_plane_candidate";
+    const groupMode = () => modelMode() || geometryMode();
+    const reviewLabels = () => geometryMode() ?
+      {suspected: "值得复核", structure: "正常构件", reconstruction_noise: "重建噪声", uncertain: "不确定", unreviewed: "未审核"} : bfddMode() ?
+      {confirmed: "对应正确", rejected: "对应错误", uncertain: "不确定", unreviewed: "未审核"} : statuses;
+    // t/r/e 只是向本地服务请求哪几种叠加层；不改变底图或模型输出文件。
+    const maskLayers = () => [document.getElementById("show-thermal-mask").checked ? "t" : "",
+                              modelMode() && document.getElementById("show-rgb-mask").checked ? "r" : "",
+                              modelMode() && document.getElementById("show-equipment-mask").checked ? "e" : ""].join("");
+    // 用 scene_id 请求对应原图；layers 只影响展示，不会保存成新真值。
+    const photoUrl = obs => {
+      const channel = document.getElementById("channel").value;
+      return `/api/photo/${encodeURIComponent(obs.scene_id)}?channel=${channel}&layers=${geometryMode() ? "" : maskLayers()}`;
+    };
+
+    function fitCloud() {
+      // 用背景点估计展示尺度，使不同 COLMAP 坐标范围都能落进画布。
+      const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+      for (const p of data.background) for (let i = 0; i < 3; i++) { min[i] = Math.min(min[i], p[i]); max[i] = Math.max(max[i], p[i]); }
+      center = min.map((value, i) => (value + max[i]) / 2);
+      extent = Math.max(...max.map((value, i) => value - min[i])) || 1;
+    }
+    function draw() {
+      // 这里只进行屏幕投影与着色；实际 2D→3D 对应由后端重建结果提供。
+      const rect = canvas.getBoundingClientRect(), ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * ratio));
+      canvas.height = Math.max(1, Math.round(rect.height * ratio));
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, rect.width, rect.height);
+      if (!data) return;
+      const scale = Math.min(rect.width, rect.height) * .75 * zoom / extent;
+      const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      const project = p => {
+        const x = p[0] - center[0], y = p[1] - center[1], z = p[2] - center[2];
+        const rx = cy * x + sy * z, rz = -sy * x + cy * z;
+        return [rect.width / 2 + rx * scale, rect.height / 2 - (cp * y - sp * rz) * scale];
+      };
+      for (const p of data.background) {
+        const [x, y] = project(p);
+        if (x < 0 || x > rect.width || y < 0 || y > rect.height) continue;
+        context.fillStyle = `rgba(${p[3]},${p[4]},${p[5]},.46)`;
+        context.fillRect(x, y, 2, 2);
+      }
+      projected = [];
+      for (const p of data.candidates) {
+        const [x, y] = project(p.xyz);
+        projected.push({id: p.id, x, y});
+        if (x < -10 || x > rect.width + 10 || y < -10 || y > rect.height + 10) continue;
+        context.beginPath();
+        const inGroup = groupMode() && selectedGroupId && p.group_id === selectedGroupId;
+        context.arc(x, y, p.id === selected?.id ? 7 : inGroup ? 5 : 3.5, 0, Math.PI * 2);
+        context.fillStyle = inGroup ? "#ffd34d" : p.display_color ?
+          `rgb(${p.display_color.join(",")})` : "#ef7828"; context.fill();
+        context.lineWidth = p.id === selected?.id ? 2.5 : .8;
+        context.strokeStyle = p.id === selected?.id ? "#243a66" : "#50301f";
+        context.stroke();
+      }
+    }
+    function renderList() {
+      // 筛选/选中候选只改浏览状态，不把前端列表当成缺陷判定结果。
+      const query = document.getElementById("search").value.trim().toLowerCase();
+      if (groupMode()) {
+        const filtered = data.groups.filter(group => !query || group.id.includes(query) || group.point_ids.some(id => String(id).includes(query)));
+        document.getElementById("list-count").textContent = `${filtered.length} 组 / ${data.candidates.length} 点`;
+        list.replaceChildren();
+        for (const group of filtered) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `candidate ${group.id === selectedGroupId ? "selected" : ""}`;
+          button.textContent = geometryMode() ?
+            `${group.id} · ${group.point_count} 点 · ${group.positive_scenes.length} 可见照片 · 峰值 ${group.max_score.toPrecision(3)}` :
+            `${group.id} · ${group.point_count} 点 · ${group.positive_scenes.length} 视角`;
+          button.addEventListener("click", () => selectPoint(data.candidates.find(point => point.id === group.point_ids[0])));
+          list.append(button);
+        }
+        return;
+      }
+      const filtered = query ? data.candidates.filter(p => String(p.id).includes(query) ||
+        (bfddMode() && p.class_name.toLowerCase().includes(query))) : data.candidates;
+      document.getElementById("list-count").textContent = `显示 ${Math.min(filtered.length, 100)} / ${filtered.length}`;
+      list.replaceChildren();
+      for (const point of filtered.slice(0, 100)) {
+        const button = document.createElement("button"), status = data.reviews[String(point.id)]?.status || "unreviewed";
+        button.type = "button";
+        button.className = `candidate ${status} ${point.id === selected?.id ? "selected" : ""}`;
+        button.textContent = geometryMode() ?
+          `#${point.id} · 偏离 ${point.geometry_score.toPrecision(3)} · ${reviewLabels()[status]}` :
+          `#${point.id}${bfddMode() ? " · " + point.class_name : ""} · ${point.positive_views}/${point.observed_views} 视角 · ${reviewLabels()[status]}`;
+        button.addEventListener("click", () => selectPoint(point));
+        list.append(button);
+      }
+    }
+    // 每条证据占一行，方便区分模型提示、原标注和人工判断。
+    function addEvidence(text) {
+      const line = document.createElement("p"); line.textContent = text;
+      document.getElementById("group-evidence").append(line);
+    }
+    // 当前组的 RGB 支持和热干扰判断是两个独立字段，不能互相推断。
+    function renderGroup() {
+      const evidence = document.getElementById("group-evidence");
+      const form = document.getElementById("group-form");
+      const members = document.getElementById("group-members");
+      evidence.replaceChildren(); members.replaceChildren();
+      const geometryForm = document.getElementById("geometry-group-form");
+      evidence.hidden = !groupMode() || !selectedGroupId;
+      form.hidden = !modelMode() || !selectedGroupId;
+      geometryForm.hidden = !geometryMode() || !selectedGroupId;
+      if (!groupMode() || !selectedGroupId) return;
+      const group = data.groups.find(item => item.id === selectedGroupId);
+      if (geometryMode()) {
+        addEvidence(`${group.id}：${group.point_count} 个相邻候选点；${group.positive_scenes.length} 张照片通过深度可见性检查。空间分组不是同一病害的证明。`);
+        addEvidence(`最高偏离分数 ${group.max_score.toPrecision(4)}，分组邻距上限 ${group.distance_threshold_model_units.toPrecision(3)}（均为重建单位，非米）。未关联照片不等于没有缺陷。`);
+        const review = data.group_reviews[selectedGroupId];
+        document.getElementById("geometry-group-status").value = review?.status || "uncertain";
+        document.getElementById("geometry-group-notes").value = review?.notes || "";
+        for (const id of group.point_ids) {
+          const button = document.createElement("button"); button.type = "button";
+          button.textContent = `#${id}`; button.className = id === selected.id ? "active" : "";
+          button.addEventListener("click", () => selectPoint(data.candidates.find(point => point.id === id)));
+          members.append(button);
+        }
+        return;
+      }
+      addEvidence(`${group.id}：${group.point_count} 个相邻三维点，出现在 ${group.positive_scenes.length} 个视角。空间分组不是同一病害的证明。`);
+      addEvidence(`RGB 可见缺陷：${group.rgb_exact_classes.length ? "同位置候选 " + group.rgb_exact_classes.join("、") : group.rgb_near_classes.length ? "附近候选 " + group.rgb_near_classes.join("、") : "采样点无对应候选；这不等于热源干扰"}。`);
+      addEvidence(`抗干扰线索：${group.equipment_model_flag ? "设备/空调模型提示影响；尚未证实为热源" : group.boundary_or_registration_flag ? "边界或配准不确定" : group.nonwall_flag ? "非墙面重叠" : "当前模型未标出已知干扰；原因仍未知"}。`);
+      addEvidence("青色=RGB 可见缺陷模型候选；紫色=设备/空调模型候选；橙色=热候选。用上方勾选项分别叠加，颜色不是因果诊断。");
+      for (const id of group.point_ids) {
+        const button = document.createElement("button"); button.type = "button";
+        button.textContent = `#${id}`; button.className = id === selected.id ? "active" : "";
+        button.addEventListener("click", () => selectPoint(data.candidates.find(point => point.id === id)));
+        members.append(button);
+      }
+      if (renderedGroupId !== selectedGroupId) {
+        const review = data.group_reviews[selectedGroupId];
+        document.getElementById("rgb-support").value = review?.rgb_support || "uncertain";
+        document.getElementById("interference-judgement").value = review?.interference_judgement || "uncertain";
+        document.getElementById("group-notes").value = review?.notes || "";
+        renderedGroupId = selectedGroupId;
+      }
+    }
+    // 只改变 CSS 宽度和滚动位置；图像源文件及像素坐标不变。
+    function setPhotoZoom(next, anchorFrame = null, anchorX = 0, anchorY = 0) {
+      // 缩放围绕鼠标位置保持相对位置，避免查看细裂缝时焦点跳走。
+      const old = photoZoom;
+      photoZoom = Math.max(1, Math.min(8, next));
+      document.getElementById("zoom-level").textContent = `${Math.round(photoZoom * 100)}%`;
+      for (const frame of photos.querySelectorAll(".photo")) {
+        const x = frame.scrollLeft, y = frame.scrollTop;
+        frame.querySelector(".photo-stage").style.width = `${photoZoom * 100}%`;
+        const factor = photoZoom / old;
+        frame.scrollLeft = (x + (frame === anchorFrame ? anchorX : frame.clientWidth / 2)) * factor - (frame === anchorFrame ? anchorX : frame.clientWidth / 2);
+        frame.scrollTop = (y + (frame === anchorFrame ? anchorY : frame.clientHeight / 2)) * factor - (frame === anchorFrame ? anchorY : frame.clientHeight / 2);
+      }
+    }
+    // 按“支持视角优先”的观测顺序展示照片；一次只绘制 photoLimit 张。
+    function renderPhotos() {
+      // 同一三维候选的多张观察图并列展示；图层通过 photoUrl 按需获取。
+      photos.replaceChildren();
+      if (!selected) return;
+      const channel = document.getElementById("channel").value;
+      for (const [index, obs] of selected.observations.slice(0, photoLimit).entries()) {
+        const card = document.createElement("article"), heading = document.createElement("div"), frame = document.createElement("div"), stage = document.createElement("div");
+        card.className = "photo-card"; heading.className = "photo-head"; frame.className = "photo";
+        stage.className = "photo-stage"; stage.style.width = `${photoZoom * 100}%`;
+        const name = document.createElement("strong"), label = document.createElement("span"), open = document.createElement("button"), image = document.createElement("img"), marker = document.createElement("div");
+        name.textContent = obs.image;
+        label.className = obs.annotated ? "positive" : "negative";
+        label.textContent = geometryMode() ? "深度核验可见；几何候选不是照片标注" : modelMode() ?
+          (obs.annotated ? "此视角模型提示热异常" : "此视角模型未提示热异常") :
+          (bfddMode() ? (obs.annotated ? `此点在 ${selected.class_name} 标注内` : "此视角未命中同类标注") :
+           (obs.annotated ? "此点在热桥标注内" : "此点不在热桥标注内"));
+        open.type = "button"; open.textContent = "全屏查看"; open.setAttribute("aria-label", `全屏查看 ${obs.image}`);
+        open.addEventListener("click", () => openViewer(index));
+        heading.append(name, label, open);
+        image.loading = "lazy"; image.alt = `${channel === "rgb" ? "RGB" : "热图"}照片 ${obs.image}`;
+        image.src = photoUrl(obs);
+        image.addEventListener("dblclick", () => openViewer(index));
+        marker.className = "marker";
+        marker.hidden = !document.getElementById("show-marker").checked;
+        const markerX = geometryMode() && channel === "thermal" ? obs.ir_x : obs.x;
+        const markerY = geometryMode() && channel === "thermal" ? obs.ir_y : obs.y;
+        const markerWidth = geometryMode() && channel === "thermal" ? obs.ir_width : obs.width;
+        const markerHeight = geometryMode() && channel === "thermal" ? obs.ir_height : obs.height;
+        marker.hidden = !document.getElementById("show-marker").checked ||
+          (geometryMode() && channel === "thermal" && markerX === undefined);
+        marker.style.left = `${100 * markerX / markerWidth}%`;
+        marker.style.top = `${100 * markerY / markerHeight}%`;
+        stage.append(image, marker); frame.append(stage); card.append(heading, frame); photos.append(card);
+        frame.addEventListener("wheel", event => {
+          event.preventDefault();
+          const rect = frame.getBoundingClientRect();
+          setPhotoZoom(photoZoom * Math.exp(-event.deltaY * 0.002), frame,
+                       event.clientX - rect.left, event.clientY - rect.top);
+        }, {passive: false});
+      }
+      const more = document.getElementById("show-more");
+      more.style.display = photoLimit < selected.observations.length ? "block" : "none";
+      more.textContent = `显示剩余 ${selected.observations.length - photoLimit} 张照片`;
+    }
+    // 全屏缩放独立于右侧卡片缩放，滚动锚点尽量保持鼠标所在位置。
+    function setViewerZoom(next, anchorX = viewerFrame.clientWidth / 2, anchorY = viewerFrame.clientHeight / 2) {
+      const old = viewerZoom;
+      viewerZoom = Math.max(1, Math.min(8, next));
+      viewerStage.style.width = `${viewerBaseWidth * viewerZoom}px`;
+      document.getElementById("viewer-zoom-level").textContent = `${Math.round(viewerZoom * 100)}%`;
+      viewerFrame.scrollLeft = (viewerFrame.scrollLeft + anchorX) * viewerZoom / old - anchorX;
+      viewerFrame.scrollTop = (viewerFrame.scrollTop + anchorY) * viewerZoom / old - anchorY;
+    }
+    function showViewerPhoto() {
+      // 全屏照片使用与缩略卡相同的观察记录和图层开关。
+      if (!selected || !selected.observations.length) return;
+      const obs = selected.observations[viewerIndex];
+      document.getElementById("viewer-title").textContent = `${viewerIndex + 1}/${selected.observations.length} · ${obs.image}`;
+      const image = document.getElementById("viewer-image");
+      image.alt = `${obs.image} 的${maskLayers() ? "掩码叠加图" : "原图"}`;
+      image.onload = () => {
+        viewerBaseWidth = Math.min(viewerFrame.clientWidth, viewerFrame.clientHeight * image.naturalWidth / image.naturalHeight);
+        viewerZoom = 1;
+        viewerStage.style.width = `${viewerBaseWidth}px`;
+        viewerFrame.scrollTo(0, 0);
+        document.getElementById("viewer-zoom-level").textContent = "100%";
+      };
+      image.src = photoUrl(obs);
+      const marker = document.getElementById("viewer-marker");
+      marker.hidden = !document.getElementById("show-marker").checked;
+      const channel = document.getElementById("channel").value;
+      const markerX = geometryMode() && channel === "thermal" ? obs.ir_x : obs.x;
+      const markerY = geometryMode() && channel === "thermal" ? obs.ir_y : obs.y;
+      const markerWidth = geometryMode() && channel === "thermal" ? obs.ir_width : obs.width;
+      const markerHeight = geometryMode() && channel === "thermal" ? obs.ir_height : obs.height;
+      marker.hidden = !document.getElementById("show-marker").checked ||
+        (geometryMode() && channel === "thermal" && markerX === undefined);
+      marker.style.left = `${100 * markerX / markerWidth}%`;
+      marker.style.top = `${100 * markerY / markerHeight}%`;
+      document.getElementById("viewer-prev").disabled = viewerIndex === 0;
+      document.getElementById("viewer-next").disabled = viewerIndex === selected.observations.length - 1;
+    }
+    // 点击某张卡片时打开同一条观察记录，不另造一条复核数据。
+    function openViewer(index) {
+      viewerIndex = index;
+      viewer.showModal();
+      viewerZoom = 1;
+      viewerBaseWidth = Math.min(viewerFrame.clientWidth, 1200);
+      viewerStage.style.width = `${viewerBaseWidth}px`;
+      document.getElementById("viewer-zoom-level").textContent = "100%";
+      viewerFrame.scrollTo(0, 0);
+      showViewerPhoto();
+    }
+    // 更新标题、证据、照片和高亮；选中本身不会写入 reviews.json。
+    function selectPoint(point) {
+      selected = point; selectedGroupId = groupMode() ? point.group_id : null; photoLimit = 12;
+      document.getElementById("point-title").textContent = `${geometryMode() ? "几何偏离候选" : modelMode() ? "模型热异常候选" : bfddMode() ? "BFDD 原标注投影 · " + point.class_name : "热桥标注候选"} · 三维点 #${point.id}`;
+      document.getElementById("point-details").textContent = geometryMode() ?
+        `点云原始索引 #${point.id} · 坐标 (${point.xyz.map(v => v.toFixed(3)).join(", ")}) · 平面偏离分数 ${point.geometry_score.toPrecision(4)}（重建单位，非米）；仅凭此分数不能确认缺陷。` :
+        `坐标 (${point.xyz.map(v => v.toFixed(3)).join(", ")}) · ${point.positive_views}/${point.observed_views} 个${modelMode() ? "模型提示" : "同类标注支持"}的视角；坐标尚无公制尺度。`;
+      const buttons = document.getElementById("review-buttons"); buttons.replaceChildren();
+      const current = data.reviews[String(point.id)]?.status || "unreviewed";
+      for (const [status, label] of Object.entries(modelMode() ? {} : reviewLabels())) {
+        const button = document.createElement("button"); button.type = "button";
+        button.textContent = label; button.className = status === current ? "active" : "";
+        button.addEventListener("click", () => saveReview(point.id, status)); buttons.append(button);
+      }
+      renderGroup(); renderList(); renderPhotos(); draw();
+    }
+    async function saveReview(pointId, status) {
+      // 显式人工操作才 POST 保存；失败时显示错误，不伪装成已保存。
+      const label = document.getElementById("save-status"); label.textContent = "保存中…";
+      try {
+        const response = await fetch("/api/review", {method: "POST", headers: {"Content-Type": "application/json", "X-Review-Token": reviewToken}, body: JSON.stringify({point_id: pointId, status})});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (status === "unreviewed") delete data.reviews[String(pointId)]; else data.reviews[String(pointId)] = {status};
+        selectPoint(selected); label.textContent = "已保存";
+      } catch (error) { label.textContent = `保存失败：${error.message}`; }
+    }
+    // 模型候选组：分别保存 RGB 是否支持与干扰线索，不作自动因果判断。
+    document.getElementById("group-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!modelMode() || !selectedGroupId) return;
+      const label = document.getElementById("save-status"); label.textContent = "保存分组判断中…";
+      const body = {group_id: selectedGroupId,
+                    rgb_support: document.getElementById("rgb-support").value,
+                    interference_judgement: document.getElementById("interference-judgement").value,
+                    notes: document.getElementById("group-notes").value};
+      try {
+        const response = await fetch("/api/group-review", {method: "POST",
+          headers: {"Content-Type": "application/json", "X-Review-Token": reviewToken},
+          body: JSON.stringify(body)});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data.group_reviews[selectedGroupId] = await response.json();
+        label.textContent = `已保存 ${selectedGroupId}：RGB 判断与干扰判断相互独立`;
+      } catch (error) { label.textContent = `保存失败：${error.message}`; }
+    });
+    // 几何组：允许标正常构件/重建噪声/待复核；它不沿用热异常标签。
+    document.getElementById("geometry-group-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!geometryMode() || !selectedGroupId) return;
+      const label = document.getElementById("save-status"); label.textContent = "保存几何组判断中…";
+      try {
+        const response = await fetch("/api/group-review", {method: "POST",
+          headers: {"Content-Type": "application/json", "X-Review-Token": reviewToken},
+          body: JSON.stringify({group_id: selectedGroupId,
+            status: document.getElementById("geometry-group-status").value,
+            notes: document.getElementById("geometry-group-notes").value})});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data.group_reviews[selectedGroupId] = await response.json();
+        label.textContent = `已保存 ${selectedGroupId} 的人工判断`;
+      } catch (error) { label.textContent = `保存失败：${error.message}`; }
+    });
+    function setCloudWidth(percent) {
+      // 限制两栏最小宽度，并仅在浏览器本地记住用户的布局偏好。
+      const bounds = main.getBoundingClientRect();
+      if (bounds.width < 650) return;
+      const minimum = 320 / bounds.width * 100;
+      const maximum = 100 - minimum - 9 / bounds.width * 100;
+      const width = Math.max(minimum, Math.min(maximum, percent));
+      main.style.setProperty("--cloud-width", `${width}%`);
+      try { localStorage.setItem("infradetect-cloud-width", String(width)); } catch (_) {}
+      draw();
+    }
+    // 分隔条支持鼠标拖动及方向键；宽度偏好只存在当前浏览器。
+    splitter.addEventListener("pointerdown", event => {
+      splitter.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    splitter.addEventListener("pointermove", event => {
+      if (!splitter.hasPointerCapture(event.pointerId)) return;
+      const bounds = main.getBoundingClientRect();
+      setCloudWidth((event.clientX - bounds.left) / bounds.width * 100);
+    });
+    splitter.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const current = parseFloat(getComputedStyle(main).getPropertyValue("--cloud-width")) || 54;
+      setCloudWidth(current + (event.key === "ArrowRight" ? 3 : -3));
+    });
+    try { const saved = Number(localStorage.getItem("infradetect-cloud-width")); if (saved > 0) setCloudWidth(saved); } catch (_) {}
+    // 图片缩放、黄圈与三种叠加层各自独立开关。
+    document.getElementById("zoom-in").addEventListener("click", () => setPhotoZoom(photoZoom * 1.3));
+    document.getElementById("zoom-out").addEventListener("click", () => setPhotoZoom(photoZoom / 1.3));
+    document.getElementById("zoom-reset").addEventListener("click", () => setPhotoZoom(1));
+    for (const id of ["show-marker", "show-thermal-mask", "show-rgb-mask", "show-equipment-mask"]) {
+      document.getElementById(id).addEventListener("change", () => {
+        if (id === "show-marker") {
+          for (const marker of photos.querySelectorAll(".marker")) marker.hidden = !document.getElementById(id).checked;
+          if (viewer.open) document.getElementById("viewer-marker").hidden = !document.getElementById(id).checked;
+        } else {
+          renderPhotos();
+          if (viewer.open) showViewerPhoto();
+        }
+      });
+    }
+    // 全屏窗口：前后翻页、缩放与拖拽，不改变右侧的人工判断记录。
+    document.getElementById("viewer-close").addEventListener("click", () => viewer.close());
+    document.getElementById("viewer-prev").addEventListener("click", () => { if (viewerIndex > 0) { viewerIndex--; showViewerPhoto(); } });
+    document.getElementById("viewer-next").addEventListener("click", () => { if (selected && viewerIndex + 1 < selected.observations.length) { viewerIndex++; showViewerPhoto(); } });
+    document.getElementById("viewer-zoom-in").addEventListener("click", () => setViewerZoom(viewerZoom * 1.3));
+    document.getElementById("viewer-zoom-out").addEventListener("click", () => setViewerZoom(viewerZoom / 1.3));
+    document.getElementById("viewer-zoom-reset").addEventListener("click", () => setViewerZoom(1));
+    viewerFrame.addEventListener("wheel", event => {
+      event.preventDefault();
+      const rect = viewerFrame.getBoundingClientRect();
+      setViewerZoom(viewerZoom * Math.exp(-event.deltaY * .002), event.clientX - rect.left, event.clientY - rect.top);
+    }, {passive: false});
+    viewerFrame.addEventListener("pointerdown", event => { viewerDragging = true; viewerLastX = event.clientX; viewerLastY = event.clientY; viewerFrame.setPointerCapture(event.pointerId); });
+    viewerFrame.addEventListener("pointermove", event => {
+      if (!viewerDragging) return;
+      viewerFrame.scrollLeft -= event.clientX - viewerLastX;
+      viewerFrame.scrollTop -= event.clientY - viewerLastY;
+      viewerLastX = event.clientX; viewerLastY = event.clientY;
+    });
+    viewerFrame.addEventListener("pointerup", () => { viewerDragging = false; });
+    viewerFrame.addEventListener("pointercancel", () => { viewerDragging = false; });
+    viewer.addEventListener("keydown", event => {
+      if (event.key === "ArrowLeft" && viewerIndex > 0) { event.preventDefault(); viewerIndex--; showViewerPhoto(); }
+      if (event.key === "ArrowRight" && selected && viewerIndex + 1 < selected.observations.length) { event.preventDefault(); viewerIndex++; showViewerPhoto(); }
+    });
+    // 点云交互仅影响视角和高亮；点击最近的屏幕投影点后再取其后端 ID。
+    canvas.addEventListener("pointerdown", event => { dragging = true; moved = false; lastX = event.clientX; lastY = event.clientY; canvas.setPointerCapture(event.pointerId); });
+    canvas.addEventListener("pointermove", event => {
+      if (!dragging) return;
+      const dx = event.clientX - lastX, dy = event.clientY - lastY;
+      if (Math.abs(dx) + Math.abs(dy) > 1) moved = true;
+      yaw += dx * .008; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * .008));
+      lastX = event.clientX; lastY = event.clientY; draw();
+    });
+    canvas.addEventListener("pointerup", event => {
+      dragging = false; if (moved) return;
+      const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
+      let closest = null, distance = 12;
+      for (const point of projected) { const d = Math.hypot(point.x - x, point.y - y); if (d < distance) { closest = point; distance = d; } }
+      if (closest) selectPoint(data.candidates.find(point => point.id === closest.id));
+    });
+    canvas.addEventListener("wheel", event => { event.preventDefault(); zoom = Math.max(.2, Math.min(8, zoom * Math.exp(-event.deltaY * .001))); draw(); }, {passive: false});
+    document.getElementById("search").addEventListener("input", () => { if (data) renderList(); });
+    document.getElementById("channel").addEventListener("change", () => { renderPhotos(); if (viewer.open) showViewerPhoto(); });
+    document.getElementById("show-more").addEventListener("click", () => { photoLimit += 12; renderPhotos(); });
+    window.addEventListener("resize", draw);
+    // 首次加载：从本机 API 获取点、组、观测和既有复核，再按证据模式配置页面。
+    fetch("/api/data").then(response => response.json()).then(value => {
+      data = value; fitCloud();
+      if (geometryMode()) {
+        document.title = "InfraDetect · 三维几何候选复核";
+        document.querySelector("header h1").textContent = "InfraDetect · 三维几何候选复核";
+        document.querySelector("header small").textContent = "墙面平面偏离基线 · 人工判断不等于物理真值";
+        document.querySelector(".list-head strong").textContent = "几何候选点";
+        document.querySelector(".legend").lastChild.textContent = " 几何偏离候选";
+        document.querySelector(".help").textContent = "橙点是偏离拟合墙面较远的点；窗、栏杆、其他墙面和重建噪声也可能亮起。此模式没有 RGB/IR 照片对应，不要仅凭点云颜色确认缺陷。人工判断另存，不改模型分数。";
+        const hasPhotos = data.summary.linked_images > 0;
+        document.querySelector(".controls").hidden = !hasPhotos;
+        document.getElementById("photos").hidden = !hasPhotos;
+        document.querySelector("#channel option[value='thermal']").hidden = data.summary.thermal_display !== "paired_image";
+        document.getElementById("show-thermal-mask").closest("label").hidden = true;
+        document.querySelector(".help").textContent = hasPhotos ?
+          "橙点仅表示偏离主墙面。照片标记经过 COLMAP 深度遮挡检查；RGB 可用于辨认窗、栏杆或材质边界，IR 只在另有 RGB→IR 配准时显示。照片对应不等于缺陷确诊，空间分组也不是同一病害的证明。" :
+          "橙点仅表示偏离主墙面。未提供 COLMAP 相机和深度工作区，故没有可靠的照片对应；窗、栏杆、另一面墙和重建噪声都可能亮起。";
+      } else if (modelMode()) {
+        document.title = "InfraDetect · 三维模型候选审核";
+        document.querySelector("header h1").textContent = "InfraDetect · 三维模型候选审核";
+        document.querySelector("header small").textContent = `${data.summary.flight} · 模型候选，不是已证实缺陷`;
+        document.querySelector(".legend").lastChild.textContent = " 多视角模型提示";
+        document.getElementById("thermal-mask-label").textContent = "热异常 mask";
+        for (const control of document.querySelectorAll(".model-layer")) control.hidden = false;
+        if (data.summary.thermal_display === "paired_image") {
+          document.querySelector("#channel option[value='thermal']").textContent = "配对 IR 图";
+        }
+        document.querySelector(".help").textContent = "勾选项分别控制定位圈与各模型 mask；全部取消即原图。RGB 未提示可见缺陷并不说明热异常是干扰。设备提示边线也不是已确认热源。分组只是空间邻近，不是已证实的同一缺陷。";
+      } else if (bfddMode()) {
+        document.title = "InfraDetect · BFDD 稠密点云与原标注审核";
+        document.querySelector("header h1").textContent = "InfraDetect · BFDD 稠密点云与原标注审核";
+        document.querySelector("header small").textContent = "27 视角局部重建 · 原标注投影，不是缺陷确诊";
+        const legend = document.querySelector(".legend"); legend.replaceChildren();
+        for (const [name, color] of Object.entries(data.summary.class_colors)) {
+          const key = document.createElement("span"), swatch = document.createElement("i");
+          key.className = "key"; swatch.className = "dot";
+          swatch.style.background = `rgb(${color.join(",")})`;
+          key.append(swatch, document.createTextNode(`${name} ${data.summary.candidate_class_counts[name] || 0}`));
+          legend.append(key);
+        }
+        document.querySelector(".list-head strong").textContent = "三维标注候选";
+        document.getElementById("search").placeholder = "输入点编号或 Cracks/Stains 等类别";
+        document.getElementById("thermal-mask-label").textContent = "BFDD 原标注 mask";
+        document.querySelector("#channel option[value='thermal']").textContent = "配对 IR 图（不表示该标注由 IR 识别）";
+        document.querySelector(".help").textContent = "点云背景是真实稠密重建；彩色候选点来自原始稀疏轨迹在至少两张 RGB 主导的 BFDD 标签中命中同一类。原标注叠到 IR 只作空间对照，不代表缺陷可由 IR 识别。黄色圈可独立隐藏，全部 mask 取消即原图。";
+      }
+      document.getElementById("summary").textContent = geometryMode() ?
+        `${data.summary.dense_points.toLocaleString()} 个稠密点 · ${data.summary.candidate_points.toLocaleString()} 个几何候选，展示分数最高的 ${data.summary.displayed_candidates.toLocaleString()} 个，组成 ${data.summary.candidate_groups.toLocaleString()} 个邻近组 · ${data.summary.linked_images} 张深度核验照片。橙点不是已确认缺陷。` : bfddMode() ?
+        `${data.summary.registered_images} 张照片 · ${data.summary.dense_points.toLocaleString()} 个稠密点 · ${data.summary.candidate_points.toLocaleString()} 个至少两视角同类标注候选。彩色点按 BFDD 类别着色；不是稠密点逐点真值。` :
+        `${data.summary.registered_images} 张照片 · ${data.summary.sparse_points.toLocaleString()} 个稀疏点 · ${data.summary.candidate_points.toLocaleString()} 个多视角${modelMode() ? "模型候选，分为 " + data.summary.candidate_groups + " 个空间组" : "标注候选"}。灰色/原色点是点云抽样，橙点是多视角对应的三维点。`;
+      if (data.candidates.length) selectPoint(data.candidates[0]); else draw();
+    }).catch(error => { document.getElementById("summary").textContent = `载入失败：${error.message}`; });
+  </script>
+</body>
+</html>

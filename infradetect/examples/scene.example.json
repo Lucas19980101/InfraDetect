@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "scene": {
+    "id": "replace_with_scene_id",
+    "source_dataset": "TBBRv2-or-validated-paired-scene",
+    "image": "data/replace_with_4_channel_scene.npy",
+    "extra_channels": [],
+    "capture_metadata": {}
+  },
+  "registration": {
+    "accepted": true,
+    "rgb_to_thermal": "infradetect/examples/tbbr_stacked_rgb_to_thermal_identity.json"
+  },
+  "models": {
+    "primary_thermal": {
+      "config": "models/thermal/primary_rgb_thermal/config.yaml",
+      "checkpoint": "models/thermal/primary_rgb_thermal/checkpoint.pt"
+    },
+    "diagnostic_thermal": {
+      "config": "models/thermal/diagnostic_thermal_only/config.yaml",
+      "checkpoint": "models/thermal/diagnostic_thermal_only/checkpoint.pt"
+    },
+    "components": {
+      "config": "models/rgb/facade_components/config.yaml",
+      "checkpoint": "models/rgb/facade_components/checkpoint.pt"
+    },
+    "air_conditioner": {
+      "config": "models/rgb/air_conditioner/config.yaml",
+      "checkpoint": "models/rgb/air_conditioner/checkpoint.pt"
+    },
+    "rgb_defect": {
+      "checkpoint": "models/rgb/visible_defects/checkpoint.pt",
+      "source": "infradetect/inference",
+      "patch_size": 512,
+      "stride": 384
+    }
+  },
+  "fusion": {
+    "thermal_threshold": 0.5,
+    "interference_threshold": 0.78,
+    "edge_radius_ir_pixels": 8
+  }
+}

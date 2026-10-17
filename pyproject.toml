@@ -1,0 +1,20 @@
+# 本文件只负责把 src/ 中的统一命令入口安装到独立 Python 环境。
+# 模型/推理依赖见 requirements-inference.txt；本包不包含训练入口。
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "infradetect-prototype"
+version = "0.1.0"
+description = "Readable orchestration layer for the InfraDetect research prototype"
+requires-python = ">=3.10"
+
+[project.scripts]
+# 安装后可用 infradetect-prototype；也可运行 python -m infradetect_prototype。
+infradetect-prototype = "infradetect_prototype.cli:main"
+
+[tool.setuptools.packages.find]
+# 这里只打包轻量 CLI；根目录 infradetect/ 包按交付目录原位置被 CLI
+# 调用（inference/evidence/geometry 均在其中），未包含训练入口。
+where = ["src"]

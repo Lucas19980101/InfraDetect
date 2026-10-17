@@ -1,8 +1,0 @@
-defaults: deeplabv3plus_6ml.yaml
-
-finetune:
-  base_checkpoint: runs/deeplabv3plus_6ml/best.pt
-  data_root: ../../DeepLabs+/dataset
-  epochs: 5
-  learning_rate: 0.00001
-  output_dir: runs/deeplabv3plus_6ml_building

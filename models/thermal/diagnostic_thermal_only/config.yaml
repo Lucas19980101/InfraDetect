@@ -1,0 +1,41 @@
+# Control run for the TASeg-transfer experiment. This uses the same TBBR
+# training setup, but starts from the public ADE20K SegFormer-B2 checkpoint
+# instead of loading the TASeg checkpoint.
+# 本文件随 IR-only 对照 checkpoint 保留：推理使用 input_mode（缺省 thermal）、
+# 类别顺序、归一化、网络结构和 native_patches 等；数据路径和 train.* 仅记录历史。
+seed: 42
+task: thermal
+data:
+  root: ../../collected_datasets/flug
+  manifest: ../data/tbbr_thermal/manifest.csv
+  image_size: [1024, 1280]  # 原像素裁块尺寸，不是整张图 resize 的目标尺寸
+  native_patches: true  # 推理必须沿用原尺寸滑窗
+  patches_per_image: 1
+  positive_crop_probability: 0.75
+  tile_overlap: 0.25  # 相邻推理块的重叠比例，用于覆盖与融合边界
+  num_workers: 0
+  pin_memory: false
+  class_names: [Background, "Thermal Anomaly"]  # 原始类名不改；展示可称 Non-thermal-anomaly / Thermal anomaly，通道 1 是异常概率
+  thermal_channel: 3  # 四通道核心输入中从 0 开始计数的第 4 通道
+  normalization: {mean: 125.0, std: 34.0}  # 与 checkpoint 匹配，不能按新数据随意重算
+  augmentation:
+    gain: [0.80, 1.20]
+    offset: [-18.0, 18.0]
+    noise_std: 2.0
+model:
+  architecture: segformer
+  encoder: b2
+  classes: 2
+  pretrained: true
+train:
+  # 历史训练设置，不会在 inference-only 交付包内启动训练。
+  batch_size: 1
+  gradient_accumulation_steps: 4
+  epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  mixed_precision: true
+  optimizer_foreach: false
+  class_weights: [1.0, 8.0]
+  selection_metric: anomaly_iou
+  output_dir: ../runs/thermal_tbbr_segformer_b2_native_patches_ade_init
